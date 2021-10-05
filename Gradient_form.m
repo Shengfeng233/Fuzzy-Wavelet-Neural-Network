@@ -1,0 +1,53 @@
+function [gradient]=Gradient_form(fmodel)
+[sample_num,feature_num]=size(fmodel.X);
+m=(fmodel.Pre)^feature_num;
+%pE_y=2/size(fmodel.X,1)*sum(fmodel.Y_est-fmodel.Y_true);
+one_mat=ones(feature_num,m);
+pE_y_inside=zeros(sample_num,1);
+pE_w=zeros(feature_num,m);
+pE_b=zeros(feature_num,m);
+pE_c=zeros(feature_num,m);
+pE_miu=zeros(pre,feature_num);
+pE_sigma=zeros(pre,feature_num);
+for i=1:sample_num
+    pE_y_inside(i)=2*(fmodel.Y_est(i)-fmodel.Y_true(i));
+    x=fmodel.X(i,:);
+    x=repmat(x',1,m);
+    mid_w=((x-fmodel.B_mat)./fmodel.C_mat).^2;
+    yita=repmat((fmodel.Yita(:,i))',feature_num,1);
+    %E对w偏导(feature_num,m)
+    pE_w=pE_w+pE_y_inside(i)*yita.*...
+        ((one_mat-mid_w).*(exp(-1/2*mid_w)));
+    %E对b偏导(feature_num,m)
+    mid_b=((x-fmodel.B_mat)./fmodel.C_mat).^2;
+    pE_b=pE_b+pE_y_inside(i)*yita.*fmodel.W_mat...
+        .*((x-fmodel.B_mat)./(fmodel.C_mat.^2)).*...
+        (3*one_mat-mid_b).*exp(-1/2*mid_b);
+    %E对c偏导(feature_num,m)
+    mid_c=((x-fmodel.B_mat).^2)./((fmodel.C_mat).^3);
+    pE_c=pE_c+pE_y_inside(i)*yita.*fmodel.W_mat...
+        .*mid_c.*(3*one_mat-mid_b).*exp(-1/2*mid_b);
+    %y对A偏导(pre,feature_num)
+    p_A_inside=Partial_a(fmodel.X(i,:),fmodel.Miu,...
+        fmodel.Sigma,feature_num,pre,fmodel.Index,...
+        fmodle.Phai(:,i),fmodel.Yita_all(i,1));
+    %E对miu偏导(pre,feature_num)
+    mid_miu=((repmat(fmodel.X(i,:),pre,1)-fmodel.Miu)./...
+        fmodel.Sigma).^2;
+    pE_miu=pE_miu+pE_y_inside(i)*p_A_inside.*...
+        (repmat(fmodel.X(i,:),pre,1)-fmodel.Miu)./...
+        ((fmodel.Sigma.^2)).*exp(-1/2*mid_miu);
+    %E对sigma偏导(pre,feature_num)
+    pE_sigma=pE_sigma+pE_y_inside(i)*p_A_inside.*...
+        ((repmat(fmodel.X(i,:),pre,1)-fmodel.Miu).^2)./...
+        ((fmodel.Sigma.^3)).*exp(-1/2*mid_miu);
+end
+    pE_w=pE_w/sample_num;
+    pE_b=pE_b/sample_num;
+    pE_c=pE_c/sample_num;
+    pE_miu=pE_miu/sample_num;
+    pE_sigma=pE_sigma/sample_num;
+% gradient=struct('pE_w',pE_w,'pE_b',pE_b,'pE_c',pE_c...
+%     ,'pE_miu',pE_miu,'pE_sigma',pE_sigma);
+gradient=[pE_miu(:);pE_sigma(:);pE_b(:);pE_b(:);pE_w(:)];
+end
